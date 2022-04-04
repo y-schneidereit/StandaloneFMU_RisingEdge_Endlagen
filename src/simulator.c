@@ -2,13 +2,15 @@
 #include <Windows.h>
 
 #include "fmi2Functions.h"
-#include "Exchange.h"
+
 // model specific constants
-#define GUID "{569bfcb7-1a23-6f16-e8d6-6f763c11bc65}"
-#define RESOURCE_LOCATION "file:///C:/Users/schyan01/github/StandaloneFMU_RisingEdge_binaries" // absolut path to the unziped fmu
+#define GUID "{dc814245-ea29-7827-4563-22c494e2e8d9}"
+#define RESOURCE_LOCATION "file:///C:/Users/schyan01/github/StandaloneFMU_RisingEdge_Endlagen" // absolut path to the unziped fmu
+
 HANDLE hFile;
-bytes_writed = 0;
-bytes_readed = 0;
+DWORD bytes_writed = 0;
+DWORD bytes_readed = 0;
+
 int write_file(LPCSTR absolut_pfad, LPCVOID write_buffer)					// Schreiben des Files
 {
 	hFile = CreateFileA(absolut_pfad,	// Filename
@@ -66,7 +68,7 @@ static void cb_freeMemory(void* obj) {
 #define CHECK_STATUS(S) { status = S; if (status != fmi2OK) goto TERMINATE; }
 
 int main(int argc, char *argv[]) {
-	HMODULE libraryHandle = LoadLibraryA("C:\\Users\\schyan01\\github\\StandaloneFMU_RisingEdge_binaries\\RisingEdge_binaries\\binaries\\win64\\RisingEdge_binaries.dll");
+	HMODULE libraryHandle = LoadLibraryA("C:\\Users\\schyan01\\github\\StandaloneFMU_RisingEdge_Endlagen\\RisingEdge_Endlagen\\binaries\\win64\\RisingEdge_Endlagen.dll");
 
 	if (!libraryHandle)
 	{
@@ -121,56 +123,50 @@ int main(int argc, char *argv[]) {
 
 	// Informs the FMU to setup the experiment. Must be called after fmi2Instantiate and befor fmi2EnterInitializationMode
 	CHECK_STATUS(SetupExperimentPtr(c, fmi2False, 0, Time, fmi2False, 0));
-	
-	// ReturnValue von Ptr
-	/*HRESULT hrReturnVal;
-	hrReturnVal = EnterInitializationModePtr(c);*/
 
 	// Informs the FMU to enter Initialization Mode.
 	CHECK_STATUS(EnterInitializationModePtr(c));
 	
-	fmi2ValueReference u_ref = 0;
-	fmi2Boolean u = 0;
+	fmi2ValueReference AtFront_ref = 0;
+	fmi2Boolean AtFront = 1;
 
-	fmi2ValueReference T_ref = 1;
-	fmi2Boolean T = 1;
-	
-	fmi2Real zaehler = 0;
+	fmi2ValueReference AtBack_ref = 1;
+	fmi2Boolean AtBack = 1;
 
-	CHECK_STATUS(SetBooleanPtr(c, &u_ref, 1, &u));
+	fmi2ValueReference Backward_ref = 2;
+	fmi2Boolean Backward;
+
+	fmi2ValueReference Forward_ref = 3;
+	fmi2Boolean Forward;
+
+	CHECK_STATUS(SetBooleanPtr(c, &AtFront_ref, 1, &AtFront));
 
 	CHECK_STATUS(ExitInitializationModePtr(c));
 
+	printf("time, AtFront, AtBack, Forward, Backward\n");
 	
-
-	printf("time, u, T\n");
-	
-	for (int nSteps = 0; nSteps <= 20; nSteps++) {
+	for (int nSteps = 0; nSteps <= 20000; nSteps++) {
 
 		Time = nSteps * stepSize;
 
-		read_file("C:\\Users\\schyan01\\source\\repos\\mKinAtFront", &u);
+		read_file("C:\\Users\\schyan01\\source\\repos\\mKinAtFront", &AtFront);
+		read_file("C:\\Users\\schyan01\\source\\repos\\mKinAtBack", &AtBack);
 
 		// set an input
-		CHECK_STATUS(SetBooleanPtr(c, &u_ref, 1, &u));
+		CHECK_STATUS(SetBooleanPtr(c, &AtFront_ref, 1, &AtFront));
+		CHECK_STATUS(SetBooleanPtr(c, &AtBack_ref, 1, &AtBack));
 		
 		// perform a simulation step
 		CHECK_STATUS(DoStepPtr(c, Time, stepSize, fmi2True));	//The computation of a time step is started.
 		
 		// get an output
-		CHECK_STATUS(GetBooleanPtr(c, &T_ref, 1, &T));
+		CHECK_STATUS(GetBooleanPtr(c, &Backward_ref, 1, &Backward));
+		CHECK_STATUS(GetBooleanPtr(c, &Forward_ref, 1, &Forward));
 
-		write_file("C:\\Users\\schyan01\\source\\repos\\mKinBackward", &T);
+		write_file("C:\\Users\\schyan01\\source\\repos\\mKinBackward", &Backward);
+		write_file("C:\\Users\\schyan01\\source\\repos\\mKinForward", &Forward);
 
-		printf("%.2f, %d, %d\n", Time, u, T);
-
-		/*if (zaehler == 4)
-		{
-			u = !u;
-			zaehler = 0;
-		}
-
-		zaehler++;*/
+		printf("%d %d %d %d \n", AtFront, AtBack, Forward, Backward);
 	}
 	
 TERMINATE:

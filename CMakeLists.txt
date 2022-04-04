@@ -8,8 +8,7 @@ add_executable(simulator
 
 target_include_directories(simulator PUBLIC
 	include
-	RisingEdge_binaries/binaries/win64
-	exchange
+	RisingEdge_Endlagen/binaries/win64
 )
 
 if (MSVC)
