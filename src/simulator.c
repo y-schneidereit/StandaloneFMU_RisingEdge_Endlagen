@@ -10,6 +10,8 @@
 HANDLE hFile;
 DWORD bytes_writed = 0;
 DWORD bytes_readed = 0;
+fmi2Boolean write_successful;
+fmi2Boolean read_successful;
 
 int write_file(LPCSTR absolut_pfad, LPCVOID write_buffer)					// Schreiben des Files
 {
@@ -19,9 +21,9 @@ int write_file(LPCSTR absolut_pfad, LPCVOID write_buffer)					// Schreiben des F
 		NULL,							// Security Attributes
 		OPEN_ALWAYS,					// Creation Disposition
 		FILE_ATTRIBUTE_NORMAL,			// Flags and Attributes
-		NULL);							// OVERLAPPED pointer	
+		NULL);							// HANDLE hFile Template	
 
-	WriteFile(hFile,							// Handle
+	write_successful = WriteFile(hFile,							// Handle
 		write_buffer,			// Data to be write
 		sizeof(write_buffer),	// Size of data, in bytes
 		&bytes_writed,			// Number of bytes writed
@@ -40,9 +42,9 @@ int read_file(LPCSTR absolut_pfad, LPVOID read_buffer)						// Lesen des Files
 		NULL,							// Security Attributes
 		OPEN_ALWAYS,					// Creation Disposition
 		FILE_ATTRIBUTE_NORMAL,			// Flags and Attributes
-		NULL);							// OVERLAPPED pointer	
+		NULL);							// HANDLE hFileTemplate	
 
-	ReadFile(hFile,					// Handle
+	read_successful = ReadFile(hFile,					// Handle
 		read_buffer,			// Data to be read
 		sizeof(read_buffer),	// Size of data, in bytes
 		&bytes_readed,			// Number of bytes readed
@@ -52,6 +54,7 @@ int read_file(LPCSTR absolut_pfad, LPVOID read_buffer)						// Lesen des Files
 
 	return 0;
 }
+
 // callback functions
 static void cb_logMessage(fmi2ComponentEnvironment componentEnvironment, fmi2String instanceName, fmi2Status status, fmi2String category, fmi2String message, ...) {
 	printf("%s\n", message);
@@ -128,18 +131,23 @@ int main(int argc, char *argv[]) {
 	CHECK_STATUS(EnterInitializationModePtr(c));
 	
 	fmi2ValueReference AtFront_ref = 0;
-	fmi2Boolean AtFront = 1;
+	fmi2Boolean AtFront = 0;
+	fmi2Char AtFrontChar;
 
 	fmi2ValueReference AtBack_ref = 1;
-	fmi2Boolean AtBack = 1;
+	fmi2Boolean AtBack = 0;
+	fmi2Char AtBackChar;
 
 	fmi2ValueReference Backward_ref = 2;
 	fmi2Boolean Backward;
+	fmi2Char BackwardChar;
 
 	fmi2ValueReference Forward_ref = 3;
 	fmi2Boolean Forward;
+	fmi2Char ForwardChar;
 
 	CHECK_STATUS(SetBooleanPtr(c, &AtFront_ref, 1, &AtFront));
+	CHECK_STATUS(SetBooleanPtr(c, &AtBack_ref, 1, &AtBack));
 
 	CHECK_STATUS(ExitInitializationModePtr(c));
 
@@ -149,24 +157,39 @@ int main(int argc, char *argv[]) {
 
 		Time = nSteps * stepSize;
 
-		read_file("C:\\Users\\schyan01\\source\\repos\\mKinAtFront", &AtFront);
-		read_file("C:\\Users\\schyan01\\source\\repos\\mKinAtBack", &AtBack);
+		read_file("C:\\Users\\schyan01\\source\\repos\\mKinAtFront", &AtFrontChar);
+		read_file("C:\\Users\\schyan01\\source\\repos\\mKinAtBack", &AtBackChar);
+
+		AtFront = AtFrontChar;
+		AtBack = AtBackChar;
 
 		// set an input
 		CHECK_STATUS(SetBooleanPtr(c, &AtFront_ref, 1, &AtFront));
 		CHECK_STATUS(SetBooleanPtr(c, &AtBack_ref, 1, &AtBack));
-		
+
 		// perform a simulation step
 		CHECK_STATUS(DoStepPtr(c, Time, stepSize, fmi2True));	//The computation of a time step is started.
-		
+
 		// get an output
 		CHECK_STATUS(GetBooleanPtr(c, &Backward_ref, 1, &Backward));
 		CHECK_STATUS(GetBooleanPtr(c, &Forward_ref, 1, &Forward));
 
-		write_file("C:\\Users\\schyan01\\source\\repos\\mKinBackward", &Backward);
-		write_file("C:\\Users\\schyan01\\source\\repos\\mKinForward", &Forward);
+		BackwardChar = Backward;
+		ForwardChar = Forward;
 
-		printf("%d %d %d %d \n", AtFront, AtBack, Forward, Backward);
+		if (BackwardChar == 1)
+		{
+			write_file("C:\\Users\\schyan01\\source\\repos\\mKinBackward", &BackwardChar);
+			write_file("C:\\Users\\schyan01\\source\\repos\\mKinForward", &ForwardChar);
+		}
+
+		else if (ForwardChar == 1)
+		{
+			write_file("C:\\Users\\schyan01\\source\\repos\\mKinForward", &ForwardChar);
+			write_file("C:\\Users\\schyan01\\source\\repos\\mKinBackward", &BackwardChar);
+		}
+		
+		printf("%.2f %d %d %d %d \n", Time, AtFront, AtBack, Forward, Backward);
 	}
 	
 TERMINATE:
